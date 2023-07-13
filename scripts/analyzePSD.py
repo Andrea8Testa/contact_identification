@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 ##################################
 
 # Path to the bag file
-bagfile_path = "../bagfiles/free_qp.bag"
+bagfile_path = "../bagfiles/contact_3_qp.bag"
 
 # Topics containing the time data
 wrench_applied = "/detection_experiment/wrench_applied"
@@ -21,7 +21,7 @@ time_topics = [wrench_applied, wrench_external]
 
 # Read the bag file
 bag = rosbag.Bag(bagfile_path)
-total_samples = 93093  # 136005 122437 93093
+total_samples = 93093  # 136005 (operator) 122437 (contact) 93093 (free)
 
 wrench_app_arr = np.zeros([6, total_samples])
 # Iterate over messages in the bag file
@@ -41,7 +41,7 @@ for topic, msg, t in bag.read_messages(topics=[wrench_applied]):
         wrench_app_arr[4, counter] = wrench.torque.y
         wrench_app_arr[5, counter] = wrench.torque.z
         counter += 1
-
+print(counter)
 wrench_ext_arr = np.zeros([6, total_samples])
 # Iterate over messages in the bag file
 counter = 0
@@ -60,8 +60,8 @@ for topic, msg, t in bag.read_messages(topics=[wrench_external]):
         wrench_ext_arr[4, counter] = wrench.torque.y
         wrench_ext_arr[5, counter] = wrench.torque.z
         counter += 1
-
-wrench_err_arr = wrench_ext_arr #- wrench_app_arr
+print(counter)
+wrench_err_arr = wrench_ext_arr - wrench_app_arr
 # Close the bag file
 bag.close()
 
@@ -86,15 +86,17 @@ for seg_index in range(0, total_samples-window_size):
         psd_fe_values = np.sqrt(np.real(fft_values*fft_values.conj()))
         psd_fe_array[dof_f, seg_index, :] = psd_fe_values
 
+frequencies = np.fft.fftfreq(1000, d=time_step)[0:20]
 good_instants_z = []
 for instant in range(0, total_samples-window_size):
-    psd_f = psd_fe_array[2, instant, :]
+    psd_f = psd_fe_array[2, instant, 0:100]
     excitation_energy = np.sum(psd_f)
-    if excitation_energy > 1:
+    if excitation_energy > 2:
         good_instants_z.append(instant)
 
-num_f_ranges = 9
+num_f_ranges = 10
 data_wrench_err_z = np.zeros((total_samples-window_size, num_f_ranges))
+"""
 for instant in good_instants_z:
     frequency0 = psd_fe_array[2, instant, :][0]
     frequency1_2 = np.sum(psd_fe_array[2, instant, :][1:3])
@@ -108,16 +110,33 @@ for instant in good_instants_z:
     data_wrench_err_z[instant] = np.asarray([frequency0, frequency1_2, frequency3_6, frequency7_15, frequency16_25,
                                              frequency26_40, frequency41_60, frequency61_85, frequency86_110])
 """
-for plot_instant in good_instants_z:
+for instant in good_instants_z:
+    frequency_0 = psd_fe_array[2, instant, :][0]
+    frequency_1 = np.sum(psd_fe_array[2, instant, :][1])
+    frequency_2 = np.sum(psd_fe_array[2, instant, :][2])
+    frequency_34 = np.sum(psd_fe_array[2, instant, :][3:5])
+    frequency_56 = np.sum(psd_fe_array[2, instant, :][5:7])
+    frequency_78 = np.sum(psd_fe_array[2, instant, :][7:9])
+    frequency_910 = np.sum(psd_fe_array[2, instant, :][9:11])
+    frequency_1113 = np.sum(psd_fe_array[2, instant, :][11:14])
+    frequency_1417 = np.sum(psd_fe_array[2, instant, :][14:17])
+    frequency_1720 = np.sum(psd_fe_array[2, instant, :][17:21])
 
-    psd_f = psd_fe_array[2, plot_instant, :]
+    data_wrench_err_z[instant] = np.asarray([frequency_0, frequency_1, frequency_2, frequency_34, frequency_56,
+                                             frequency_78, frequency_910, frequency_1113, frequency_1417, frequency_1720])
 
-    excitation_energy_5 = np.sum(psd_f[0:int(len(psd_f)/100)])
-    print("excitation energy in range 0-5: ", excitation_energy_5)
+print(len(good_instants_z))
+for i in range(0, len(good_instants_z), 10000):
 
-    plt.plot(freqs, psd_f, color='red', linewidth=0.5)
+    plot_instant = good_instants_z[i]
+    psd_f = psd_fe_array[2, plot_instant, 0:20]
 
-    plt.xlim(0, 100)
+    excitation_energy_5 = np.sum(psd_f)
+    print("excitation energy in range 0-20: ", excitation_energy_5)
+
+    plt.plot(frequencies, psd_f, color='red', linewidth=0.5)
+
+    plt.xlim(0, 20)
     plt.xlabel('Frequencies')
     plt.ylabel('Magnitude')
     plt.title('Power Spectral Density')
@@ -125,8 +144,8 @@ for plot_instant in good_instants_z:
 
     # Display the plot
     plt.show()
-"""
+
 nonzero_rows = np.any(data_wrench_err_z != 0, axis=1)
 filtered_arr = data_wrench_err_z[nonzero_rows]
 # Save the array to a file
-np.save('../Qp/psd/free_ext_array.npy', filtered_arr)
+np.save('../Qp/psd_new/contact_3_array.npy', filtered_arr)

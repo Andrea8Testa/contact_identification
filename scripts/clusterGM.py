@@ -5,24 +5,25 @@ import matplotlib.pyplot as plt
 from sklearn.mixture import GaussianMixture
 from joblib import dump
 
-free_array = np.load('../Qp/psd/free_ext_array.npy')
-contact_array = np.load('../Qp/psd/contact_ext_array.npy')
-operator_array = np.load('../Qp/psd/operator_ext_array.npy')
+free_array = np.load('../Qp/psd_new/free_ext_array.npy')
+contact_array = np.load('../Qp/psd_new/contact_ext_array.npy')
+operator_array = np.load('../Qp/psd_new/operator_ext_array.npy')
 
 data = np.vstack((free_array, contact_array, operator_array))
 row_sums = np.sum(data, axis=1)
-normalized_data = np.divide(data, row_sums[:, np.newaxis])
-data_with_energy = np.hstack((normalized_data, (row_sums.reshape(-1, 1))/max(row_sums)))
+normalized_data = np.divide(data, np.max(data, axis=0))
+# normalized_data = np.divide(data, row_sums[:, np.newaxis])
+# data_with_energy = np.hstack((normalized_data, (row_sums.reshape(-1, 1))/max(row_sums)))
 # Create an instance of Gaussian Mixture Models
-num_clusters = 15
-gmm = GaussianMixture(n_components=num_clusters, random_state=0, max_iter=1000, n_init=10)
+num_clusters = 3
+gmm = GaussianMixture(n_components=num_clusters, random_state=0)  # max_iter=1000, n_init=10
 
 # Fit the GMM to your data
-gmm.fit(data_with_energy)
+gmm.fit(normalized_data)
 
 # Obtain the probabilistic cluster assignments for each point
-proba_matrix = gmm.predict_proba(data_with_energy)
-labels = gmm.predict(data_with_energy)
+proba_matrix = gmm.predict_proba(normalized_data)
+labels = gmm.predict(normalized_data)
 '''
 # Iterate over each point and print the cluster probabilities
 for i, proba_row in enumerate(proba_matrix):
