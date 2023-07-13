@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 ##################################
 
 # Path to the bag file
-bagfile_path = "../bagfiles/operator.bag"
+bagfile_path = "../bagfiles/free_qp.bag"
 
 # Topics containing the time data
 wrench_applied = "/detection_experiment/wrench_applied"
@@ -21,7 +21,7 @@ time_topics = [wrench_applied, wrench_external]
 
 # Read the bag file
 bag = rosbag.Bag(bagfile_path)
-total_samples = 105172  # 95924 57720 49792 105172
+total_samples = 93093  # 136005 122437 93093
 
 wrench_app_arr = np.zeros([6, total_samples])
 # Iterate over messages in the bag file
@@ -61,7 +61,7 @@ for topic, msg, t in bag.read_messages(topics=[wrench_external]):
         wrench_ext_arr[5, counter] = wrench.torque.z
         counter += 1
 
-wrench_err_arr = wrench_ext_arr - wrench_app_arr
+wrench_err_arr = wrench_ext_arr #- wrench_app_arr
 # Close the bag file
 bag.close()
 
@@ -129,4 +129,4 @@ for plot_instant in good_instants_z:
 nonzero_rows = np.any(data_wrench_err_z != 0, axis=1)
 filtered_arr = data_wrench_err_z[nonzero_rows]
 # Save the array to a file
-np.save('../psd/operator_array.npy', filtered_arr)
+np.save('../Qp/psd/free_ext_array.npy', filtered_arr)

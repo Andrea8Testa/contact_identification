@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 from sklearn.mixture import GaussianMixture
 from joblib import dump
 
-free_array = np.load('../psd/free_array.npy')
-contact_array = np.load('../psd/contact_array.npy')
-operator_array = np.load('../psd/operator_array.npy')
+free_array = np.load('../Qp/psd/free_ext_array.npy')
+contact_array = np.load('../Qp/psd/contact_ext_array.npy')
+operator_array = np.load('../Qp/psd/operator_ext_array.npy')
 
 data = np.vstack((free_array, contact_array, operator_array))
 row_sums = np.sum(data, axis=1)
@@ -92,4 +92,4 @@ ax.legend()
 plt.tight_layout()
 plt.show()
 
-dump(gmm, '../models/gmm_model_15_1.joblib')
+dump(gmm, '../Qp/models/gmm_model_ext_15.joblib')
