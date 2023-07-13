@@ -1,0 +1,13 @@
+if data[-1, -1]*self.max_norm < 1:
+            prediction = "No interaction"
+        else:
+            label = self.gmm_loaded.predict(data)
+            print(label)
+            if (label == 2) or (label == 4) or (label == 6) or (label == 8) or (label == 9) or (label == 12):
+                prediction = "Free motion"
+            elif (label == 1) or (label == 3) or (label == 10):
+                prediction = "Contact with the environment"
+            elif (label == 0) or (label == 5) or (label == 11) or (label == 13) or (label == 14):
+                prediction = "Interation with the operator"
+            else:
+                prediction = "Undefined"

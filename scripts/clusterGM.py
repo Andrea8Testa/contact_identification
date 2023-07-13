@@ -5,16 +5,16 @@ import matplotlib.pyplot as plt
 from sklearn.mixture import GaussianMixture
 from joblib import dump
 
-free_array = np.load('PSD/free_array.npy')
-contact_array = np.load('PSD/contact_array.npy')
-operator_array = np.load('PSD/operator_array.npy')
+free_array = np.load('../psd/free_array.npy')
+contact_array = np.load('../psd/contact_array.npy')
+operator_array = np.load('../psd/operator_array.npy')
 
 data = np.vstack((free_array, contact_array, operator_array))
 row_sums = np.sum(data, axis=1)
 normalized_data = np.divide(data, row_sums[:, np.newaxis])
 data_with_energy = np.hstack((normalized_data, (row_sums.reshape(-1, 1))/max(row_sums)))
 # Create an instance of Gaussian Mixture Models
-num_clusters = 12
+num_clusters = 15
 gmm = GaussianMixture(n_components=num_clusters, random_state=0, max_iter=1000, n_init=10)
 
 # Fit the GMM to your data
@@ -92,4 +92,4 @@ ax.legend()
 plt.tight_layout()
 plt.show()
 
-dump(gmm, 'models/gmm_model_10.joblib')
+dump(gmm, '../models/gmm_model_15_1.joblib')

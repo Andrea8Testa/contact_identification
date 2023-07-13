@@ -6,14 +6,13 @@ from geometry_msgs.msg import WrenchStamped
 from sensor_msgs.msg import JointState
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import welch
 
 ##################################
 #### Extract data from bagfile ###
 ##################################
 
 # Path to the bag file
-bagfile_path = "bagfiles/operator.bag"
+bagfile_path = "../bagfiles/operator.bag"
 
 # Topics containing the time data
 wrench_applied = "/detection_experiment/wrench_applied"
@@ -72,27 +71,30 @@ bag.close()
 
 # Discrete time
 time_step = 1/1000.
-seg_l = 1000
+# Create a Hann window
+window_size = 1000
+window = np.hanning(window_size)
 
-psd_fe_array = np.zeros((3, total_samples-1, int(seg_l/2+1)))
+psd_fe_array = np.zeros((3, total_samples-1, int(window_size/2)))
 
-for seg_index in range(0, total_samples-seg_l):
+for seg_index in range(0, total_samples-window_size):
     init_seg = seg_index
-    final_seg = init_seg + seg_l
+    final_seg = init_seg + window_size
     for dof_f in range(0, 3):
         wrench_err_segment = wrench_err_arr[dof_f, init_seg:final_seg]
-        freqs, psd_fe_values = welch(wrench_err_segment, fs=1/time_step, nperseg=seg_l, noverlap=0)
+        fft_values = np.fft.fft(window*wrench_err_segment)[0:500]/window_size
+        psd_fe_values = np.sqrt(np.real(fft_values*fft_values.conj()))
         psd_fe_array[dof_f, seg_index, :] = psd_fe_values
 
 good_instants_z = []
-for instant in range(0, total_samples-seg_l):
+for instant in range(0, total_samples-window_size):
     psd_f = psd_fe_array[2, instant, :]
     excitation_energy = np.sum(psd_f)
     if excitation_energy > 1:
         good_instants_z.append(instant)
 
 num_f_ranges = 9
-data_wrench_err_z = np.zeros((total_samples-seg_l, num_f_ranges))
+data_wrench_err_z = np.zeros((total_samples-window_size, num_f_ranges))
 for instant in good_instants_z:
     frequency0 = psd_fe_array[2, instant, :][0]
     frequency1_2 = np.sum(psd_fe_array[2, instant, :][1:3])
@@ -127,4 +129,4 @@ for plot_instant in good_instants_z:
 nonzero_rows = np.any(data_wrench_err_z != 0, axis=1)
 filtered_arr = data_wrench_err_z[nonzero_rows]
 # Save the array to a file
-np.save('PSD/operator_array.npy', filtered_arr)
+np.save('../psd/operator_array.npy', filtered_arr)

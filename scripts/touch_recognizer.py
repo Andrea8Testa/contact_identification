@@ -4,7 +4,7 @@ import numpy as np
 from joblib import load
 import rospy
 from geometry_msgs.msg import WrenchStamped
-from scipy.signal import welch
+from geometry_msgs.msg import Vector3
 
 
 class WrenchListenerNode:
@@ -12,10 +12,13 @@ class WrenchListenerNode:
         self.wrench_applied = []
         self.wrench_external = []
 
-        self.max_norm = 144.17156909948386
+        self.max_norm = 24.649895669582985
         self.time_step = 1/1000.
+        # Create a Hann window
+        self.window_size = 1000
+        self.window = np.hanning(self.window_size)
         # Load the saved model
-        self.gmm_loaded = load('models/gmm_model_10.joblib')
+        self.gmm_loaded = load('../models/gmm_model_15.joblib')
 
     def wrench_applied_callback(self, msg):
         # Extract the linear force vector
@@ -41,17 +44,25 @@ class WrenchListenerNode:
 
     def compute_power_spectral_density(self):
         if len(self.wrench_external) != 1000 or len(self.wrench_applied) != 1000:
-            return None, None
+            return None
 
         # Convert wrench_msgs to a numpy array
         wrench_external_array = np.array(self.wrench_external)
         wrench_applied_array = np.array(self.wrench_applied)
         wrench_error_array = wrench_external_array - wrench_applied_array
 
-        # Compute power spectral density using Welch's method
-        frequencies_wrench, psd_wrench = welch(wrench_error_array.T, fs=1/self.time_step, nperseg=1000, noverlap=0)
-        # psd_wrench: 3x501
-        return frequencies_wrench, psd_wrench
+        fft_values_x = np.fft.fft(self.window*wrench_error_array[:, 0])[0:500]/self.window_size
+        psd_fe_values_x = np.sqrt(np.real(fft_values_x*fft_values_x.conj()))
+
+        fft_values_y = np.fft.fft(self.window*wrench_error_array[:, 1])[0:500]/self.window_size
+        psd_fe_values_y = np.sqrt(np.real(fft_values_y*fft_values_y.conj()))
+
+        fft_values_z = np.fft.fft(self.window*wrench_error_array[:, 2])[0:500]/self.window_size
+        psd_fe_values_z = np.sqrt(np.real(fft_values_z*fft_values_z.conj()))
+
+        psd_wrench = np.vstack((psd_fe_values_x, psd_fe_values_y, psd_fe_values_z))
+        # psd_wrench: 3x500
+        return psd_wrench
 
     def contact_identification(self, dof, power_spectral_density):
         data = self.extract_data(dof, power_spectral_density)
@@ -59,14 +70,16 @@ class WrenchListenerNode:
             prediction = "No interaction"
         else:
             label = self.gmm_loaded.predict(data)
-            if (label == 1) or (label == 11) or (label == 5):
-                prediction = "Free motion"
-            elif (label == 6) or (label == 7) or (label == 8):
-                prediction = "Contact with the environment"
-            elif (label == 0) or (label == 2) or (label == 3) or (label == 4):
-                prediction = "Interation with the operator"
+            # if dof == 2:
+            #    print(label)
+            if (label == 2) or (label == 4) or (label == 6) or (label == 8) or (label == 9) or (label == 12):
+                prediction = 0  # Free motion
+            elif (label == 1) or (label == 3) or (label == 7) or (label == 10):
+                prediction = 1  # Contact with the environment
+            elif (label == 0) or (label == 5) or (label == 11) or (label == 13) or (label == 14):
+                prediction = 2  # Interation with the operator
             else:
-                prediction = "Undefined"
+                prediction = 3  # Undefined
 
         return prediction
 
@@ -84,9 +97,9 @@ class WrenchListenerNode:
         data = np.asarray([frequency0, frequency1_2, frequency3_6, frequency7_15, frequency16_25,
                            frequency26_40, frequency41_60, frequency61_85, frequency86_110])
 
-        row_sums = np.sum(data)
-        normalized_data = data/row_sums
-        data_with_energy = np.hstack((normalized_data, row_sums/self.max_norm))
+        energy = np.sum(data)
+        normalized_data = data/energy
+        data_with_energy = np.hstack((normalized_data, energy/self.max_norm))
         data_2d = data_with_energy.reshape((1, -1))
         return data_2d
 
@@ -96,17 +109,25 @@ class WrenchListenerNode:
 
         rospy.Subscriber("/detection_experiment/wrench_external", WrenchStamped, self.wrench_external_callback)
         rospy.Subscriber("/detection_experiment/wrench_applied", WrenchStamped, self.wrench_applied_callback)
+        pub = rospy.Publisher("/adaptive_qp/touch_detection", Vector3, queue_size=1)
 
         rate = rospy.Rate(100)  # Adjust the rate according to your requirements
-
         while not rospy.is_shutdown():
-            frequencies, psd = self.compute_power_spectral_density()
-            if frequencies is not None and psd is not None:
+            psd = self.compute_power_spectral_density()
+            msg = Vector3()
+            msg.x = 0
+            msg.y = 0
+            msg.z = 0
+            if psd is not None:
                 prediction_x = self.contact_identification(0, psd)
                 prediction_y = self.contact_identification(1, psd)
                 prediction_z = self.contact_identification(2, psd)
                 print(prediction_z)
+                msg.x = prediction_x
+                msg.y = prediction_y
+                msg.z = prediction_z
 
+            pub.publish(msg)
             rate.sleep()
 
 
