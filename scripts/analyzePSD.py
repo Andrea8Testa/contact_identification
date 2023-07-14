@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 ##################################
 
 # Path to the bag file
-bagfile_path = "../bagfiles/contact_3_qp.bag"
+bagfile_path = "../bagfiles/contact_force.bag"
 
 # Topics containing the time data
 wrench_applied = "/detection_experiment/wrench_applied"
@@ -21,7 +21,7 @@ time_topics = [wrench_applied, wrench_external]
 
 # Read the bag file
 bag = rosbag.Bag(bagfile_path)
-total_samples = 93093  # 136005 (operator) 122437 (contact) 93093 (free)
+total_samples = 200000  # 136005 (operator) 122437 (contact) 93093 (free)
 
 wrench_app_arr = np.zeros([6, total_samples])
 # Iterate over messages in the bag file
@@ -86,7 +86,7 @@ for seg_index in range(0, total_samples-window_size):
         psd_fe_values = np.sqrt(np.real(fft_values*fft_values.conj()))
         psd_fe_array[dof_f, seg_index, :] = psd_fe_values
 
-frequencies = np.fft.fftfreq(1000, d=time_step)[0:20]
+frequencies = np.fft.fftfreq(1000, d=time_step)[0:100]
 good_instants_z = []
 for instant in range(0, total_samples-window_size):
     psd_f = psd_fe_array[2, instant, 0:100]
@@ -94,9 +94,9 @@ for instant in range(0, total_samples-window_size):
     if excitation_energy > 2:
         good_instants_z.append(instant)
 
-num_f_ranges = 10
+num_f_ranges = 9
 data_wrench_err_z = np.zeros((total_samples-window_size, num_f_ranges))
-"""
+
 for instant in good_instants_z:
     frequency0 = psd_fe_array[2, instant, :][0]
     frequency1_2 = np.sum(psd_fe_array[2, instant, :][1:3])
@@ -124,19 +124,19 @@ for instant in good_instants_z:
 
     data_wrench_err_z[instant] = np.asarray([frequency_0, frequency_1, frequency_2, frequency_34, frequency_56,
                                              frequency_78, frequency_910, frequency_1113, frequency_1417, frequency_1720])
-
+"""
 print(len(good_instants_z))
 for i in range(0, len(good_instants_z), 10000):
 
     plot_instant = good_instants_z[i]
-    psd_f = psd_fe_array[2, plot_instant, 0:20]
+    psd_f = psd_fe_array[2, plot_instant, 0:100]
 
     excitation_energy_5 = np.sum(psd_f)
     print("excitation energy in range 0-20: ", excitation_energy_5)
 
     plt.plot(frequencies, psd_f, color='red', linewidth=0.5)
 
-    plt.xlim(0, 20)
+    plt.xlim(0, 100)
     plt.xlabel('Frequencies')
     plt.ylabel('Magnitude')
     plt.title('Power Spectral Density')
@@ -148,4 +148,4 @@ for i in range(0, len(good_instants_z), 10000):
 nonzero_rows = np.any(data_wrench_err_z != 0, axis=1)
 filtered_arr = data_wrench_err_z[nonzero_rows]
 # Save the array to a file
-np.save('../Qp/psd_new/contact_3_array.npy', filtered_arr)
+np.save('../Qp/psd_new/contact_force_array100.npy', filtered_arr)

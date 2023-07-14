@@ -21,10 +21,10 @@ class WrenchListenerNode:
         self.window = np.hanning(self.window_size)
         # Load the saved model
         self.knc_train = KNeighborsClassifier(n_neighbors=3)
-        self.stacked_array = np.empty((0, 10))
+        self.stacked_array = np.empty((0, 9))
         self.stacked_vector = np.empty((0, 1))
         self.super_label = 0
-        self.knc_loaded = pickle.load(open('../knc/knnpickle_last', 'rb'))
+        self.knc_loaded = pickle.load(open('../knc/knnpickle_incr2', 'rb'))
 
     def supervised_label_callback(self, msg):
         self.super_label = msg.data
@@ -59,7 +59,7 @@ class WrenchListenerNode:
         # Convert wrench_msgs to a numpy array
         wrench_external_array = np.array(self.wrench_external)
         wrench_applied_array = np.array(self.wrench_applied)
-        wrench_error_array = wrench_external_array - wrench_applied_array
+        wrench_error_array = wrench_external_array #- wrench_applied_array
 
         fft_values_x = np.fft.fft(self.window*wrench_error_array[:, 0])[0:500]/self.window_size
         psd_fe_values_x = np.sqrt(np.real(fft_values_x*fft_values_x.conj()))
@@ -80,30 +80,29 @@ class WrenchListenerNode:
             label = 0
         else:
             label = self.knc_loaded.predict(data.reshape(1, -1))[0]
-            # self.stacked_array = np.vstack((self.stacked_array, data.reshape(1, -1)))
-            # self.stacked_vector = np.vstack((self.stacked_vector, np.array(self.super_label)))
+            self.stacked_array = np.vstack((self.stacked_array, data.reshape(1, -1)))
+            self.stacked_vector = np.vstack((self.stacked_vector, np.array(self.super_label)))
             #label = 0
 
         return label
 
     def extract_data(self, dof, power_spectral_density):
 
-        frequency_0 = power_spectral_density[dof, 0]
-        frequency_1 = power_spectral_density[dof, 1]
-        frequency_2 = power_spectral_density[dof, 2]
-        frequency_34 = np.sum(power_spectral_density[dof, 3:5])
-        frequency_56 = np.sum(power_spectral_density[dof, 5:7])
-        frequency_78 = np.sum(power_spectral_density[dof, 7:9])
-        frequency_910 = np.sum(power_spectral_density[dof, 9:11])
-        frequency_1113 = np.sum(power_spectral_density[dof, 11:14])
-        frequency_1417 = np.sum(power_spectral_density[dof, 14:17])
-        frequency_1720 = np.sum(power_spectral_density[dof, 17:21])
+        frequency0 = power_spectral_density[dof, 0]
+        frequency1_2 = np.sum(power_spectral_density[dof,  1:3])
+        frequency3_6 = np.sum(power_spectral_density[dof, 3:7])
+        frequency7_15 = np.sum(power_spectral_density[dof, 7:16])
+        frequency16_25 = np.sum(power_spectral_density[dof, 16:26])
+        frequency26_40 = np.sum(power_spectral_density[dof, 26:41])
+        frequency41_60 = np.sum(power_spectral_density[dof, 41:61])
+        frequency61_85 = np.sum(power_spectral_density[dof, 61:86])
+        frequency86_110 = np.sum(power_spectral_density[dof, 86:111])
 
-        data = np.asarray([frequency_0, frequency_1, frequency_2, frequency_34, frequency_56,
-                           frequency_78, frequency_910, frequency_1113, frequency_1417, frequency_1720])
+        data = np.asarray([frequency0, frequency1_2, frequency3_6, frequency7_15, frequency16_25,
+                           frequency26_40, frequency41_60, frequency61_85, frequency86_110])
 
         if np.sum(data[0:100]) < 2:
-            normalized_data = np.zeros(10)
+            normalized_data = np.zeros(9)
         else:
             normalized_data = np.divide(data, np.max(data, axis=0))
 
@@ -129,22 +128,23 @@ class WrenchListenerNode:
                 prediction_x = self.contact_identification(0, psd)
                 prediction_y = self.contact_identification(1, psd)
                 prediction_z = self.contact_identification(2, psd)
-                print(prediction_z)
+           
                 msg.x = prediction_x
                 msg.y = prediction_y
                 msg.z = prediction_z
 
             pub.publish(msg)
             rate.sleep()
-        """
+        
+        
         self.knc_train.fit(self.stacked_array, self.stacked_vector)
-        knnPickle = open('../knc/knnpickle_last', 'wb')
+        knnPickle = open('../knc/knnpickle_no', 'wb')
         # source, destination
         pickle.dump(self.knc_train, knnPickle)
         # close the file
         knnPickle.close()
         print("model saved")
-        """
+        
 
 
 if __name__ == '__main__':

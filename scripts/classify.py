@@ -6,9 +6,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score
 import pickle
 
-free_array = np.load('../Qp/psd_new/free_array.npy')
-contact_array = np.load('../Qp/psd_new/contact_3_array.npy')
-operator_array = np.load('../Qp/psd_new/operator_2_array.npy')
+free_array = np.load('../Qp/psd_new/free_motion_cartesian_array100.npy')
+contact_array = np.load('../Qp/psd_new/contact_force_array100.npy')
+operator_array = np.load('../Qp/psd_new/contact_admittance_array100.npy')
 
 data_labels = np.hstack((0*np.ones(len(free_array)), 1*np.ones(len(contact_array)), 2*np.ones(len(operator_array))))
 data = np.vstack((free_array, contact_array, operator_array))
@@ -29,7 +29,7 @@ accuracy = accuracy_score(y_test, y_pred)
 print("Accuracy:", accuracy)
 
 # save
-knnPickle = open('../knc/knnpickle_last', 'wb')
+knnPickle = open('../knc/knnpickle_offline', 'wb')
 # source, destination
 pickle.dump(classifier, knnPickle)
 # close the file
